@@ -2,6 +2,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
 from pynfb.helpers.beep import SingleBeep
 from .inlet import InletSettingsWidget, EventsInletSettingsWidget
+from .filters import FilterSettingsWidget, EventsFilterSettingsWidget
 
 
 class BandWidget(QtWidgets.QWidget):
@@ -54,6 +55,10 @@ class GeneralSettingsWidget(QtWidgets.QWidget):
         # inlet
         self.inlet = InletSettingsWidget(parent=self)
         self.form_layout.addRow('&Inlet:', self.inlet)
+
+        # filter
+        self.filtertype = FilterSettingsWidget(parent=self)
+        self.form_layout.addRow('&Filter:', self.filtertype)
 
         # events inlet
         self.events_inlet = EventsInletSettingsWidget(parent=self)

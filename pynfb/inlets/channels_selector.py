@@ -27,7 +27,7 @@ class ChannelsSelector:
         names = [n.upper() for n in self.inlet.get_channels_labels()]
 
         # cut after first non alphabetic numerical (e.g. 'Fp1-A1' -> 'Fp1')
-        names = [''.join([ch if ch.isalnum() else ' ' for ch in name]).split()[0] for name in names]
+        #names = [''.join([ch if ch.isalnum() else ' ' for ch in name]).split()[0] for name in names]
 
         # append aux inlets
         if self.aux_inlets is not None:
@@ -106,8 +106,8 @@ class ChannelsSelector:
                                           len(self.inlet.get_channels_labels()))
 
 
-    def get_next_chunk(self):
-        chunk, timestamp = self.inlet.get_next_chunk()
+    def get_next_chunk(self, mode=0):
+        chunk, timestamp = self.inlet.get_next_chunk(mode=mode)
         if chunk is not None:
             if self.dc:
                 chunk = self.dc_blocker(chunk)

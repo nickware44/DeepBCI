@@ -6,6 +6,7 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QScrollArea, QWidget
 
 from pynfb.brain import SourceSpaceRecontructor
 from pynfb.brain import SourceSpaceWidget
@@ -135,7 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
                  max_protocol_n_samples=None,
                  experiment=None, freq=500,
                  plot_raw_flag=True, plot_signals_flag=True, plot_source_space_flag=False, show_subject_window=True,
-                 channels_labels=None, photo_rect=False):
+                 channels_labels=None, photo_rect=False, show=False):
         super(MainWindow, self).__init__(parent)
 
         # Which windows to draw:
@@ -143,6 +144,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show_subject_window = show_subject_window
 
         # status info
+        #self.status = 0
         self.status = PlayerLineInfo([p.name for p in protocols], [[p.duration for p in protocols]])
 
         self.source_freq = freq
@@ -190,19 +192,22 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.player_panel, 3, 0, 1, 1)
         layout.addWidget(self.timer_label, 3, 1, 1, 1)
         #layout.addWidget(self.topomaper, 3, 2, 1, 1)
-        layout.addWidget(self.status, 4, 0, 1, 3)
+        #layout.addWidget(self.status, 4, 0, 1, 3)
         layout.layout.setRowStretch(0, 2)
         layout.layout.setRowStretch(2, 2)
         self.setCentralWidget(layout)
 
+        #layout.addWidget(self.signals_painter, 4, 0, 1, 3)
+
         # main window settings
         self.resize(800, 600)
-        self.show()
+        if show:
+            self.show()
 
         # subject window
         if show_subject_window:
             self.subject_window = SubjectWindow(self, current_protocol, photo_rect=photo_rect)
-            self.subject_window.show()
+            #self.subject_window.show()
             self._subject_window_want_to_close = False
         else:
             self.subject_window = None
@@ -345,6 +350,28 @@ class SubjectWindow(SecondaryWindow):
                                            is_half_time=is_half_time)
         if self.photo_rect is not None:
             self.photo_rect.change_color(samples[self.current_protocol.source_signal_id or 0])
+
+
+class RawPainterWindow(QtWidgets.QMainWindow):
+    def __init__(self, freq=500, channels_labels=None, parent=None, mode=0):
+        super(RawPainterWindow, self).__init__(parent)
+
+        # signals painter
+        self.fileToolBar = self.addToolBar("Data")
+        self.signals_painter = RawViewer(freq, channels_labels, mode=mode, toolbar=self.fileToolBar)
+        layout = pg.LayoutWidget(self)
+        layout.addWidget(self.signals_painter, 0, 0, 0, 3)
+        #layout.addWidget(layer, 1, 0, 0, 1)
+
+        mw = QScrollArea()
+        #mw.setLayout(layout)
+        #mw.setWidget(layout)
+        #mw.resize(2000, 800)
+        #mw.setWidgetResizable(True)
+        #mw.show()
+        self.setCentralWidget(layout)
+        self.resize(1300, 800)
+        self.show()
 
 def main():
     print(static_path)

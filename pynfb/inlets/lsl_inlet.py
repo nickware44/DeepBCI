@@ -41,9 +41,9 @@ class LSLInlet:
         else:
             raise ConnectionError('Cannot connect to "{}" LSL stream'.format(name))
 
-    def get_next_chunk(self):
+    def get_next_chunk(self, mode=0):
         # get next chunk
-        chunk, timestamp = self.inlet.pull_chunk()
+        chunk, timestamp = self.inlet.pull_chunk() if mode == 0 else self.inlet.pull_chunk(timeout=3, max_samples=900000)
         # convert to numpy array
         chunk = np.array(chunk, dtype=self.dtype)
         # return first n_channels channels or None if empty chunk

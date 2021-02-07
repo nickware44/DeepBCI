@@ -381,6 +381,7 @@ class DownsampleFilter:
             self.shift = self.q - self.shift
         return out
 
+
 if __name__ == '__main__':
     import pylab as plt
 

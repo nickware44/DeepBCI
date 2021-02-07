@@ -17,7 +17,8 @@ vectors_defaults = OrderedDict([
     ('sPrefilterBand', 'None None'),
     ('sExperimentName', 'experiment'),
     ('sInletType', 'lsl'),
-    ('sStreamName', 'NVX136_Data'),
+    ('sFilterType', 'f1'),
+    ('sStreamName', 'SmartBCI_Data'),
     ('sEventsStreamName', ''),
     ('sRawDataFilePath', ''),
     ('sFTHostnamePort', 'localhost:1972'),
@@ -96,7 +97,7 @@ vectors_defaults = OrderedDict([
             ('fMSignalThreshold', 1),
             ('bMockSource', 0),
             ('bEnableDetectionTask', 0),
-            ('bAutoBCIFit', 0)
+            ('bAutoBCIFit', 1)
         ])])])),
     ('vPGroups', OrderedDict([
         ('PGroup', [OrderedDict([  # DerivedSignal is list!

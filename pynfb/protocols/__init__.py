@@ -29,7 +29,7 @@ class Protocol:
                  mock_samples_path=(None, None), show_reward=False, reward_signal_id=0, reward_threshold=0.,
                  ssd_in_the_end=False, timer=None, freq=500, mock_previous=0, drop_outliers=0, stats_type='meanstd',
                  experiment=None, pause_after=False, reverse_mock_previous=False, m_signal_index=None,
-                 shuffle_mock_previous=None, beep_after=False, as_mock=False, auto_bci_fit=False, montage=None,
+                 shuffle_mock_previous=None, beep_after=False, as_mock=False, auto_bci_fit=True, montage=None,
                  random_over_time=0):
         """ Constructor
         :param signals: derived signals
@@ -130,12 +130,13 @@ class Protocol:
         # automatic fit bci (protocol names should be in the bci_labels dictionary keys below)
         if self.auto_bci_fit:
             # prepare train data:
-            bci_labels = {'Open': 0, 'Left': 1, 'Right': 2}
+            bci_labels = {'Open': 0, 'Left': 1, 'Right': 2, "Protocol": 3}
             X = np.vstack([x for x, name in zip(x, protocols_seq) if name in bci_labels])
-            y = np.concatenate([np.ones(len(x), dtype=int) *  bci_labels[name]
+            y = np.concatenate([np.ones(len(x), dtype=int) * bci_labels[name]
                                 for x, name in zip(x, protocols_seq) if name in bci_labels], 0)
             # find and fit first bci signal:
             bci_signal = [signal for signal in self.signals if isinstance(signal, BCISignal)][0]
+            # bci_signal = self.signals[0]
             bci_signal.fit_model(X, y)
 
         if self.ssd_in_the_end:

@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import multiprocessing
+import mne
 
 import pynfb
 import matplotlib

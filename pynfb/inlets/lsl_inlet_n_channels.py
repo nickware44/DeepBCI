@@ -22,7 +22,7 @@ class LSLInlet:
             print(self.dtype)
         self.n_channels = n_channels if n_channels else self.inlet.info().channel_count()
 
-    def get_next_chunk(self):
+    def get_next_chunk(self, mode=0):
         # get next chunk
         chunk, timestamp = self.inlet.pull_chunk()
         # convert to numpy array

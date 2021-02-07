@@ -21,6 +21,7 @@ from .serializers import read_spatial_filter
 from .protocols import BaselineProtocol, FeedbackProtocol, ThresholdBlinkFeedbackProtocol, VideoProtocol
 from .signals import DerivedSignal, CompositeSignal, BCISignal
 from .windows import MainWindow
+from .windows import RawPainterWindow
 from ._titles import WAIT_BAR_MESSAGES
 import mne
 
@@ -41,6 +42,8 @@ class Experiment():
         self.mock_signals_buffer = None
         self.activate_trouble_catching = False
         self.main = None
+        self.painter = None
+        self.rawfile = 0
         self.restart()
         pass
 
@@ -97,7 +100,8 @@ class Experiment():
                                 self.raw_std = 0.5 * raw_std_new + 0.5 * self.raw_std
 
             # redraw signals and raw data
-            self.main.redraw_signals(sample, chunk, self.samples_counter, self.current_protocol_n_samples)
+            self.painter.signals_painter.set_chunk(chunk)
+            #self.main.redraw_signals(sample, chunk, self.samples_counter, self.current_protocol_n_samples)
             if self.params['bPlotSourceSpace']:
                 self.source_space_window.update_protocol_state(chunk)
 
@@ -114,8 +118,7 @@ class Experiment():
             # self.reward.update(samples[self.reward.signal_ind], chunk.shape[0])
             if (self.main.player_panel.start.isChecked() and
                     self.samples_counter - chunk.shape[0] < self.experiment_n_samples):
-                self.reward_recorder[
-                self.samples_counter - chunk.shape[0]:self.samples_counter] = self.reward.get_score()
+                self.reward_recorder[self.samples_counter - chunk.shape[0]:self.samples_counter] = self.reward.get_score()
 
             if self.main.player_panel.start.isChecked():
                 # subject update
@@ -130,6 +133,14 @@ class Experiment():
             # change protocol if current_protocol_n_samples has been reached
             if self.samples_counter >= self.current_protocol_n_samples and not self.test_mode:
                 self.next_protocol()
+
+    def setRaw(self):
+        chunk, other_chunk, timestamp = self.stream.get_next_chunk(mode=self.rawfile) if self.stream is not None else (None, None)
+        #print("try")
+        if chunk is not None:
+            print(chunk.size)
+            self.painter.signals_painter.set_chunk(chunk)
+
 
     def enable_trouble_catching(self, widget):
         self.catch_channels_trouble = not widget.ignore_flag
@@ -296,8 +307,8 @@ class Experiment():
 
         # run file lsl stream in a thread
         self.thread = None
-        if self.params['sInletType'] == 'lsl_from_file':
-            self.restart_lsl_from_file()
+        if self.params['sInletType'] == 'raw_from_file':
+            self.restart_raw_from_file()
 
         # run simulated eeg lsl stream in a thread
         elif self.params['sInletType'] == 'lsl_generator':
@@ -316,7 +327,6 @@ class Experiment():
             streams = [LSLInlet(name=name) for name in stream_names]
             stream = streams[0]
             aux_streams = streams[1:] if len(streams) > 1 else None
-
         # setup events stream by name
         events_stream_name = self.params['sEventsStreamName']
         events_stream = LSLInlet(events_stream_name) if events_stream_name else None
@@ -475,8 +485,6 @@ class Experiment():
 
         # timer
         # self.main_timer = QtCore.QTimer(self.app)
-        self.main_timer.timeout.connect(self.update)
-        self.main_timer.start(1000 * 1. / self.freq)
 
         # current protocol number of samples ('frequency' * 'protocol duration')
         self.current_protocol_n_samples = self.freq * (self.protocols_sequence[self.current_protocol_index].duration +
@@ -520,20 +528,32 @@ class Experiment():
                                plot_source_space_flag=self.params['bPlotSourceSpace'],
                                show_subject_window=self.params['bShowSubjectWindow'],
                                channels_labels=channels_labels,
-                               photo_rect=self.params['bShowPhotoRectangle'])
+                               photo_rect=self.params['bShowPhotoRectangle'],
+                               show=False)
+
         self.subject = self.main.subject_window
         if self.params['bPlotSourceSpace']:
             self.source_space_window = self.main.source_space_window
 
-        if self.params['sInletType'] == 'lsl_from_file':
-            self.main.player_panel.start_clicked.connect(self.restart_lsl_from_file)
+        if self.params['sInletType'] == 'raw_from_file':
+            self.main.player_panel.start_clicked.connect(self.restart_raw_from_file)
 
         # create real fb list
         self.real_fb_number_list = []
 
+        self.painter = RawPainterWindow(freq=self.freq, channels_labels=channels_labels, mode=self.rawfile)
+
+        if self.rawfile:
+            self.setRaw()
+            #self.main_timer.timeout.connect(self.setRaw)
+            #self.main_timer.start(3000)
+        else:
+            print("Not raw")
+            self.main_timer.timeout.connect(self.update)
+            self.main_timer.start(1000 * 1. / self.freq)
         wait_bar.close()
 
-    def restart_lsl_from_file(self):
+    def restart_raw_from_file(self):
         if self.thread is not None:
             self.thread.terminate()
 
@@ -541,6 +561,7 @@ class Experiment():
         reference = self.params['sReference']
         stream_name = self.params['sStreamName']
 
+        self.rawfile = 1
         self.thread = stream_file_in_a_thread(file_path, reference, stream_name)
 
     def destroy(self):

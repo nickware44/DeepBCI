@@ -1,6 +1,6 @@
 from PyQt5 import QtGui, QtWidgets
 
-inlet_types = ['lsl', 'lsl_from_file', 'lsl_generator', 'ftbuffer']
+inlet_types = ['lsl', 'raw_from_file', 'lsl_generator', 'ftbuffer']
 
 
 class InletSettingsWidget(QtWidgets.QWidget):
@@ -9,7 +9,7 @@ class InletSettingsWidget(QtWidgets.QWidget):
         self.setContentsMargins(0, 0, 0, 0)
         self.combo = QtWidgets.QComboBox()
         self.combo.addItem('LSL stream')
-        self.combo.addItem('LSL from file')
+        self.combo.addItem('Raw data from file')
         self.combo.addItem('LSL generator')
         self.combo.addItem('Field Trip buffer')
         self.line_edit_1 = QtWidgets.QLineEdit()
