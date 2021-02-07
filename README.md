@@ -1,24 +1,24 @@
-# NFB Lab 
-*NFB Lab* allows you to configure the design and conduct an experiment in real-time EEG/MEG paradigm.
+# DeepBCI 
+*DeepBCI* allows you to configure the design and conduct an experiment in real-time EEG/MEG paradigm.
 
 ## Installation
 Prerequisites: [python](https://www.python.org/), [git](https://git-scm.com/), optionally [conda](https://docs.conda.io/en/latest/miniconda.html).
 
-**Warning:** NFB Studio requires you install some outdated versions of packages. Consider installing it in a virtual enviroment, using tools such as venv or conda. For example, if using conda, create and activate a new environment by running these commands first:
+**Warning:** DeepBCI requires you install some outdated versions of packages. Consider installing it in a virtual enviroment, using tools such as venv or conda. For example, if using conda, create and activate a new environment by running these commands first:
 ```
-conda create -n nfb python pip
-conda activate nfb
+conda create -n DeepBCI python pip
+conda activate DeepBCI
 ```
 
 Regardless of whether or not you are using a virtual environment, clone this repository and install the package in editable mode by running:
 ```
-git clone https://github.com/nikolaims/nfb
-cd nfb
+git clone https://github.com/nickware44/DeepBCI.git
+cd DeepBCI
 pip install -e .
 ```
 
 ## Running the experiment designer
-After installation, NFB Lab can be run from anywhere by using this command (when using a virtual environment, it has to be active):
+After installation, DeepBCI can be run from anywhere by using this command (when using a virtual environment, it has to be active):
 ```
 pynfb
 ```
@@ -26,10 +26,10 @@ Or from the folder you installed it in:
 ```
 python pynfb/main.py
 ```
-If you need to use NFB Lab without a console, or run it from anywhere and distribute it, the best option is to freeze it into an executable.
+If you need to use DeepBCI without a console, or run it from anywhere and distribute it, the best option is to freeze it into an executable.
 
 ### Freezing
-NFB supports building as an executable, using the `pyinstaller` module. To use it, first install nfb with `freeze` addon:
+DeepBCI supports building as an executable, using the `pyinstaller` module. To use it, first install DeepBCI with `freeze` addon:
 ```
 pip install -e .[freeze]
 ```
@@ -40,7 +40,7 @@ pyinstaller freeze.spec
 The executable can then be found in the `dist` folder.
 
 ### Commandline arguments
-NFB supports commandline arguments to streamline opening and running experiments:
+DeepBCI supports commandline arguments to streamline opening and running experiments:
 ```
 usage: pynfb [-h] [-x] [file]
 
