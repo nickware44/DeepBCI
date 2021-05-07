@@ -45,6 +45,7 @@ class Experiment():
         self.painter = None
         self.rawfile = 0
         self.restart()
+        print("DBG 3 =========="+str(params))
         pass
 
     def update(self):
@@ -60,6 +61,8 @@ class Experiment():
             # update and collect current samples
             for i, signal in enumerate(self.signals):
                 signal.update(chunk)
+                #print(chunk)
+                #print("DBG i ==========")
                 # self.current_samples[i] = signal.current_sample
 
             # push current samples
@@ -100,7 +103,8 @@ class Experiment():
                                 self.raw_std = 0.5 * raw_std_new + 0.5 * self.raw_std
 
             # redraw signals and raw data
-            self.painter.signals_painter.set_chunk(chunk)
+            #print(chunk)
+            self.painter.signals_painter.set_chunk(self.signals[0], chunk)
             #self.main.redraw_signals(sample, chunk, self.samples_counter, self.current_protocol_n_samples)
             if self.params['bPlotSourceSpace']:
                 self.source_space_window.update_protocol_state(chunk)
@@ -137,9 +141,12 @@ class Experiment():
     def setRaw(self):
         chunk, other_chunk, timestamp = self.stream.get_next_chunk(mode=self.rawfile) if self.stream is not None else (None, None)
         #print("try")
+        # for i, signal in enumerate():
+        #     signal.fit_model(chunk, ['EEG  F7', 'EEG  F3', 'EEG  F4', 'EEG  F8', 'EEG  T3', 'EEG  C3', 'EEG  Cz', 'EEG  C4', 'EEG  T4', 'EEG  T5', 'EEG  P3', 'EEG  Pz', 'EEG  P4', 'EEG  T6', 'EEG  O1', 'EEG  O2'])
+        #     chunk = signal.apply(chunk)
         if chunk is not None:
             print(chunk.size)
-            self.painter.signals_painter.set_chunk(chunk)
+            self.painter.signals_painter.set_chunk(self.signals[0], chunk)
 
 
     def enable_trouble_catching(self, widget):
@@ -186,23 +193,23 @@ class Experiment():
                                        zip(self.signals, self.signals_recorder[:self.samples_counter].T)]).T
 
         # close previous protocol
-        self.protocols_sequence[self.current_protocol_index].close_protocol(
-            raw=self.raw_recorder[:self.samples_counter],
-            signals=signals_recordings,
-            protocols=self.protocols,
-            protocols_seq=[protocol.name for protocol in self.protocols_sequence[:self.current_protocol_index + 1]],
-            raw_file=self.dir_name + 'experiment_data.h5',
-            marks=self.mark_recorder[:self.samples_counter])
+        # self.protocols_sequence[self.current_protocol_index].close_protocol(
+        #     raw=self.raw_recorder[:self.samples_counter],
+        #     signals=signals_recordings,
+        #     protocols=self.protocols,
+        #     protocols_seq=[protocol.name for protocol in self.protocols_sequence[:self.current_protocol_index + 1]],
+        #     raw_file=self.dir_name + 'experiment_data.h5',
+        #     marks=self.mark_recorder[:self.samples_counter])
 
-        save_signals(self.dir_name + 'experiment_data.h5', self.signals, protocol_number_str,
-                     raw_data=self.raw_recorder[:self.samples_counter],
-                     timestamp_data=self.timestamp_recorder[:self.samples_counter],
-                     raw_other_data=self.raw_recorder_other[:self.samples_counter],
-                     signals_data=signals_recordings,
-                     reward_data=self.reward_recorder[:self.samples_counter],
-                     protocol_name=self.protocols_sequence[self.current_protocol_index].name,
-                     mock_previous=self.protocols_sequence[self.current_protocol_index].mock_previous,
-                     mark_data=self.mark_recorder[:self.samples_counter])
+        # save_signals(self.dir_name + 'experiment_data.h5', self.signals, protocol_number_str,
+        #              raw_data=self.raw_recorder[:self.samples_counter],
+        #              timestamp_data=self.timestamp_recorder[:self.samples_counter],
+        #              raw_other_data=self.raw_recorder_other[:self.samples_counter],
+        #              signals_data=signals_recordings,
+        #              reward_data=self.reward_recorder[:self.samples_counter],
+        #              protocol_name=self.protocols_sequence[self.current_protocol_index].name,
+        #              mock_previous=self.protocols_sequence[self.current_protocol_index].mock_previous,
+        #              mark_data=self.mark_recorder[:self.samples_counter])
 
         # reset samples counter
         previous_counter = self.samples_counter
@@ -351,26 +358,26 @@ class Experiment():
         self.raw_std = None
 
         # signals
-        self.signals = [DerivedSignal.from_params(ind, self.freq, self.n_channels, channels_labels, signal)
-                        for ind, signal in enumerate(self.params['vSignals']['DerivedSignal']) if
-                        not signal['bBCIMode']]
-
-        # composite signals
-        self.composite_signals = [CompositeSignal([s for s in self.signals],
-                                                  signal['sExpression'],
-                                                  signal['sSignalName'],
-                                                  ind + len(self.signals), self.freq)
-                                  for ind, signal in enumerate(self.params['vSignals']['CompositeSignal'])]
+        # self.signals = [DerivedSignal.from_params(ind, self.freq, self.n_channels, channels_labels, signal)
+        #                 for ind, signal in enumerate(self.params['vSignals']['DerivedSignal']) if
+        #                 not signal['bBCIMode']]
+        #
+        # # composite signals
+        # self.composite_signals = [CompositeSignal([s for s in self.signals],
+        #                                           signal['sExpression'],
+        #                                           signal['sSignalName'],
+        #                                           ind + len(self.signals), self.freq)
+        #                           for ind, signal in enumerate(self.params['vSignals']['CompositeSignal'])]
 
         # bci signals
         self.bci_signals = [BCISignal(self.freq, channels_labels, signal['sSignalName'], ind)
-                            for ind, signal in enumerate(self.params['vSignals']['DerivedSignal']) if
-                            signal['bBCIMode']]
+                            for ind, signal in enumerate(self.params['vSignals']['DerivedSignal'])]
 
-        self.signals += self.composite_signals
-        self.signals += self.bci_signals
+        #print("DBG 2 =========="+str(len(self.signals))+" "+str(len(self.composite_signals))+" "+str(len(self.bci_signals)))
+        # self.signals += self.composite_signals
+        self.signals = self.bci_signals
         # self.current_samples = np.zeros_like(self.signals)
-
+        print("DBG 2 ==========" + str(len(self.signals)))
         # signals outlet
         self.signals_outlet = SignalsOutlet([signal.name for signal in self.signals], fs=self.freq)
 
@@ -506,8 +513,8 @@ class Experiment():
         self.mark_recorder = np.zeros((max_protocol_n_samples * 110 // 100)) * np.nan
 
         # save init signals
-        save_signals(self.dir_name + 'experiment_data.h5', self.signals,
-                     group_name='protocol0')
+        # save_signals(self.dir_name + 'experiment_data.h5', self.signals,
+        #              group_name='protocol0')
 
         # save settings
         params_to_xml_file(self.params, self.dir_name + 'settings.xml')

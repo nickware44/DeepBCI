@@ -67,7 +67,7 @@ def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', lab
     #if source_buffer is not None:
         #source_buffer = np.concatenate([source_buffer.T, source_buffer.T[::-1]]).T
     raw = 1
-    time.sleep(2)
+    time.sleep(5)
     while True:
         # if source_buffer is not None get sample from source_buffer
         # else simulate sin(a*t)*sin(b*t)
@@ -106,9 +106,10 @@ def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', lab
                 c += 1
                 outlet.push_sample(sample)
         else:
-            sample = np.sin(2 * np.pi * time.time() * 50) * 0 + np.sin(2 * np.pi * time.time() * freqs)
+            sample = np.sin(2 * np.pi * time.time() * 6) * 5 + np.sin(2 * np.pi * time.time() * freqs)
             # sample *= (np.sin(2 * np.pi * time.time() * 0.25) + 1) * ampl
             sample *= c % (500 * 4) * ampl
+
             if c % 20000 > 10000:
                 sample[0] *= 1
             outlet.push_sample(sample)

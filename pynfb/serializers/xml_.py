@@ -142,7 +142,7 @@ def get_lsl_info_from_xml(xml_str_or_file):
         root = ET.fromstring(xml_str_or_file)
     info = {}
     channels = [k.find('label').text for k in root.find('desc').find('channels').findall('channel')]
-    fs = int(root.find('nominal_srate').text)
+    fs = int(float(root.find('nominal_srate').text))
     return channels, fs
 
 

@@ -6,7 +6,7 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QScrollArea, QWidget
+from PyQt5.QtWidgets import QScrollArea, QWidget, QVBoxLayout
 
 from pynfb.brain import SourceSpaceRecontructor
 from pynfb.brain import SourceSpaceWidget
@@ -358,12 +358,18 @@ class RawPainterWindow(QtWidgets.QMainWindow):
 
         # signals painter
         self.fileToolBar = self.addToolBar("Data")
-        self.signals_painter = RawViewer(freq, channels_labels, mode=mode, toolbar=self.fileToolBar)
+
+        widelem = QScrollArea()
+        self.signals_painter = RawViewer(freq, channels_labels, mode=mode, toolbar=self.fileToolBar, widgets=widelem)
         layout = pg.LayoutWidget(self)
-        layout.addWidget(self.signals_painter, 0, 0, 0, 3)
+        layout.addWidget(self.signals_painter, 0, 0)
+        widelem.setFixedWidth(270)
+
+        #layout.addWidget(plot, 1, 0)
+        layout.addWidget(widelem, 0, 1)
         #layout.addWidget(layer, 1, 0, 0, 1)
 
-        mw = QScrollArea()
+
         #mw.setLayout(layout)
         #mw.setWidget(layout)
         #mw.resize(2000, 800)

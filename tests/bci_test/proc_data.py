@@ -47,20 +47,22 @@ if __name__ == '__main__':
     import h5py
     import pylab as plt
 
-    file = r'C:\Users\Nikolai\PycharmProjects\nfb\pynfb\results\BCI_Test_4_06-23_16-20-48\experiment_data.h5'
+    file = r'E:\Develop\NFB\pynfb\results\experiment_02-06_12-36-50\experiment_data.h5'
     #file = r'C:\Users\Nikolai\PycharmProjects\nfb\pynfb\results\BCI_Test_2_1_06-22_17-01-07\experiment_data.h5'
 
     labels_map = {'Open': 0, 'Right': 2, 'Left': 1}
     with h5py.File(file) as f:
         fs, ch_names, p_names = get_info(f, []) #['AUX', 'A1', 'A2', 'F4', 'Pz']
+        print(f.keys())
         before = []
         after = []
         before_labels = []
         after_labels = []
         k = 0
-        for protocol in ['protocol{}'.format(j + 1) for j in range(len(f.keys()) - 3)]:
+        for protocol in ['protocol0']:    #['protocol{}'.format(j + 1) for j in range(len(f.keys()) - 3)]:
             name = f[protocol].attrs['name']
-            if name in ['Right', 'Open', 'Left']:
+            print(str(f[protocol].attrs['name']))
+            if name in ['unknown', 'Right', 'Open', 'Left']:
                 data = f[protocol + '/raw_data'][:]
                 labels = np.ones(len(data), dtype=int) * labels_map[name]
                 if k < 9:
@@ -73,8 +75,8 @@ if __name__ == '__main__':
                 k += 1
     stds = 1#np.vstack(before).std(0)
 
-    datasets = [(np.vstack(before)/stds, np.concatenate(before_labels, 0)),
-                (np.vstack(after)/stds, np.concatenate(after_labels, 0))][::-1]
+    datasets = [(np.vstack(before)/stds, before_labels),
+                (np.vstack(after)/stds, after_labels, 0)][::-1]
     print(datasets[0][0].shape, datasets[1][0].shape)
 
     # fit model

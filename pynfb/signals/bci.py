@@ -16,7 +16,7 @@ class BCIModel():
     def __init__(self, fs, bands, ch_names, states_labels, indexes):
         self.states_labels = states_labels
         self.bands = bands
-        self.prefilter = FilterSequence([ButterFilter((0.5, 45), fs, len(ch_names))])
+        self.prefilter = FilterSequence([ButterFilter((9, 15), fs, len(ch_names))])
         self.csp_pools = [SpatialDecompositionPool(ch_names, fs, bands, 'csp', indexes) for _label in states_labels]
         self.csp_transformer = None
         self.var_detector = InstantaneousVarianceFilter(len(bands)*len(indexes)*len(states_labels), n_taps=int(fs//2))
@@ -26,19 +26,19 @@ class BCIModel():
 
     def fit(self, X, y=None):
         X = self.prefilter.apply(X)
-        for csp_pool, label in zip(self.csp_pools, self.states_labels):
-            csp_pool.fit(X, y == label)
-        self.csp_transformer = FilterStack([pool.get_filter_stack() for pool in self.csp_pools])
-        X = self.csp_transformer.apply(X)
-        X = self.var_detector.apply(X)
+        # for csp_pool, label in zip(self.csp_pools, self.states_labels):
+        #     csp_pool.fit(X, y == label)
+        # self.csp_transformer = FilterStack([pool.get_filter_stack() for pool in self.csp_pools])
+        # X = self.csp_transformer.apply(X)
+        #X = self.var_detector.apply(X)
         X = self.scaler.fit_transform(X)
-        self.classifier.fit(X, y)
-        accuracies = [sum(self.classifier.predict(X) == y)/len(y)]
-        print('Fit accuracy {}'.format(accuracies[0]))
-        for label in self.states_labels:
-            accuracies.append(sum(self.classifier.predict(X[y == label]) == label) / sum(y == label))
-            print('Fit accuracy label {}: {}'.format(label,accuracies[-1]))
-        return accuracies
+        #self.classifier.fit(X, y)
+        #accuracies = [sum(self.classifier.predict(X) == y)/len(y)]
+        # print('Fit accuracy {}'.format(accuracies[0]))
+        # for label in self.states_labels:
+        #     accuracies.append(sum(self.classifier.predict(X[y == label]) == label) / sum(y == label))
+        #     print('Fit accuracy label {}: {}'.format(label,accuracies[-1]))
+        return 1
 
     def get_accuracies(self, X, y):
         accuracies = [sum(self.apply(X) == y) / len(y)]
@@ -48,11 +48,14 @@ class BCIModel():
 
     def apply(self, chunk: np.ndarray):
         chunk = self.prefilter.apply(chunk)
-        chunk = self.csp_transformer.apply(chunk)
-        chunk = self.var_detector.apply(chunk)
-        chunk = self.scaler.transform(chunk)
-        predicted_labels = self.classifier.predict(chunk)
-        return predicted_labels
+        #chunk = self.csp_transformer.apply(chunk)
+        #chunk = self.var_detector.apply(chunk)
+
+        #chunk = self.scaler.transform(chunk)
+
+        #predicted_labels = self.classifier.predict(chunk)
+        #print(predicted_labels)
+        return chunk
 
 class BCISignal():
     def __init__(self, fs, ch_names, name, id, bands=None, states_labels=None, indexes=None):
@@ -69,11 +72,13 @@ class BCISignal():
         self.scaling_flag = False
         self.model_fitted = False
         self.current_chunk = None
+        print("DBG 0 ==========")
 
     def update(self, chunk):
         if self.model_fitted:
             labels = self.model.apply(chunk)
             self.current_sample = Counter(labels).most_common(1)[0][0]
+        #print("DBG 1 ==========")
         self.current_chunk = self.current_sample * np.ones(len(chunk))
         with open("bci_current_state.pkl", "w", encoding="utf-8") as fp:
             fp.write(str(self.current_sample))
