@@ -1,4 +1,5 @@
-from ..signal_processing.filters import ButterFilter, FilterSequence, FilterStack, InstantaneousVarianceFilter
+from ..signal_processing.filters import ButterFilter, FilterSequence, FilterStack, InstantaneousVarianceFilter, \
+    ExponentialSmoother
 from ..signal_processing.decompositions import SpatialDecompositionPool
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -16,15 +17,18 @@ class BCIModel():
     def __init__(self, fs, bands, ch_names, states_labels, indexes):
         self.states_labels = states_labels
         self.bands = bands
-        self.prefilter = FilterSequence([ButterFilter((9, 15), fs, len(ch_names))])
+        self.prefilter = None
         self.csp_pools = [SpatialDecompositionPool(ch_names, fs, bands, 'csp', indexes) for _label in states_labels]
         self.csp_transformer = None
         self.var_detector = InstantaneousVarianceFilter(len(bands)*len(indexes)*len(states_labels), n_taps=int(fs//2))
         #self.classifier = MLPClassifier(hidden_layer_sizes=(), early_stopping=True, verbose=True)
         self.classifier = RandomForestClassifier(max_depth=3, min_samples_leaf=100)
         self.scaler = StandardScaler()
+        self.fs = fs
+        self.ch_names = ch_names
 
-    def fit(self, X, y=None):
+    def fit(self, X, values, y=None):
+        self.prefilter = FilterSequence([ButterFilter(values, self.fs, len(self.ch_names))])
         X = self.prefilter.apply(X)
         # for csp_pool, label in zip(self.csp_pools, self.states_labels):
         #     csp_pool.fit(X, y == label)
@@ -87,8 +91,8 @@ class BCISignal():
     def apply(self, chunk):
         return self.model.apply(chunk)
 
-    def fit_model(self, X, y):
-        accuracies = self.model.fit(X, y)
+    def fit_model(self, X, V, y):
+        accuracies = self.model.fit(X, V, y)
         self.model_fitted = True
         return accuracies
 

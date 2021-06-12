@@ -4,6 +4,8 @@ import pyqtgraph as pg
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, QRunnable, QThreadPool
 from PyQt5.QtWidgets import QAction, QSpinBox, QLabel, QDoubleSpinBox, QMenu, QTableWidget, QPushButton, QWidget, \
     QVBoxLayout, QHBoxLayout
+
+from scipy.signal import savgol_filter
 from scipy.fft import fft, fftfreq, rfft
 from PyQt5 import QtCore, QtGui, QtWidgets
 from datetime import datetime
@@ -105,33 +107,82 @@ class SpectralWindow(QWidget):
 
         self.pos = np.zeros((n, 2), dtype=np.float32)
         self.pos[:, 0] = rfftfreq(n, 1/freq)
-        #pos[:, 0] = self.x_mesh[:self.n_samples_to_display]
         self.line = scene.Line(self.pos, color, parent=self.viewbox.scene)
 
         self.viewbox.camera.set_range()
-        self.freqbar = pg.BarGraphItem(x=[1], height=0, width=0.6, brush='g')
-        self.plot = pg.PlotWidget()
-        self.plot.addItem(self.freqbar)
-        self.plot.setFixedWidth(100)
         layout.addWidget(canvas.native)
-        layout.addWidget(self.plot)
         self.setLayout(layout)
-        #self.graphplot = self.graph.plot([0], [0])
 
     def set_data(self, y):
         self.pos[:, 1] = y
         self.line.set_data(pos=self.pos)
+
+class RhythmsWindow(QWidget):
+    def __init__(self, n, freq):
+        super().__init__()
+        layout = QHBoxLayout()
+        self.setWindowTitle("Rhythms indicators")
+        self.n = n
+        self.freq = freq
+
+        self.bar1 = pg.BarGraphItem(x=[1], height=1, width=0.2, brush='g')
+        self.bar2 = pg.BarGraphItem(x=[2], height=2, width=0.2, brush='w')
+        self.bar3 = pg.BarGraphItem(x=[3], height=3, width=0.2, brush='y')
+        self.plot = pg.PlotWidget()
+        self.plot.addItem(self.bar1)
+        self.plot.addItem(self.bar2)
+        self.plot.addItem(self.bar3)
+        layout.addWidget(self.plot)
+        self.setLayout(layout)
+
+        self.update_counter = 1001
+
+    def get_indicator(self, data, num, f, k2):
+        x = rfftfreq(self.n, 1/self.freq)
+        buffer = rfft(data[:, num])
         sy0 = 0
         sy1 = 0
         sy2 = 0
-        # for i in range(int(6 / x[1]), int(9 / x[1]), 1):
-        #     sy0 += np.abs(y)[i]
-        # for i in range(int(9 / x[1]), int(11 / x[1]), 1):
-        #     sy1 += np.abs(y)[i]
-        # for i in range(int(11 / x[1]), int(13 / x[1]), 1):
-        #     sy2 += np.abs(y)[i]
-        sx = sy1 - sy0 - sy2
-        #self.freqbar.setOpts(height=sx)
+        B = []
+
+        for i in range(0, len(x), 1):
+            if f[0] < x[i] < f[3]:
+                B.append(np.abs(buffer)[i])
+
+        k1 = len(B)-1 if len(B)%2 == 0 else len(B)
+        fb = savgol_filter(B, k1, k2)
+        pg.plot(fb)
+        kx = len(fb)/(f[3]-f[0])
+        for i in range(0, int(kx*(f[1]-f[0])), 1):
+            sy0 += fb[i]
+        for i in range(int(kx*(f[1]-f[0])), int(kx*(f[2]-f[0])), 1):
+            sy1 += fb[i]
+        for i in range(int(kx*(f[2]-f[0])), len(fb), 1):
+            sy2 += fb[i]
+
+        print(kx)
+        print(sy1)
+        print(sy0)
+        print(sy2)
+
+        sx = 1 - (sy0/sy1+sy2/sy1)/2
+        if sx < -1:
+            sx = -1
+        return sx
+
+    def set_data(self, data):
+        self.update_counter += 1
+        if self.update_counter > 1000:
+            self.update_counter = 0
+        else:
+            return
+
+        ai = self.get_indicator(data[0], 19, [7, 9, 11, 13], 6) # OZ, alpha
+        ti = self.get_indicator(data[1], 3, [3, 5, 7, 9], 6) # F7, teta
+        di = self.get_indicator(data[2], 10, [0.4, 1.4, 2.4, 3.4], 7) # CZ, delta
+        self.bar1.setOpts(height=ai)
+        self.bar2.setOpts(height=ti)
+        self.bar3.setOpts(height=di)
 
 class RawViewer(QWidget):
     def __init__(self, fs, channels_labels, parent=None, overlap=False, mode=0, toolbar=None, freqbar=None, widgets=None):
@@ -157,7 +208,9 @@ class RawViewer(QWidget):
         self.current_pos = 0
         self.std = None
         self.raw_buffer = None
-        self.filtered_buffer = None
+        self.filtered_buffer1 = None
+        self.filtered_buffer2 = None
+        self.filtered_buffer3 = None
         self.scaler = 0.0041
         self.step = 0.0001
         self.curves = []
@@ -170,7 +223,6 @@ class RawViewer(QWidget):
         #self.butter_filter = ButterFilter((0.5, 45), fs, n_channels)
         self.sw = []
         print("FS: "+str(fs))
-
         self.pool = QThreadPool.globalInstance()
 
         if self.mode == 0:
@@ -183,6 +235,7 @@ class RawViewer(QWidget):
             self.create_surface()
             for i in range(0, self.n_channels):
                 self.sw.append(SpectralWindow(channels_labels[i], int(self.n_samples/2), self.fs))
+            self.rw = RhythmsWindow(int(self.n_samples/2), self.fs)
 
         self.saveAction = QAction(self)
         self.saveAction.setText("Save data...")
@@ -245,6 +298,11 @@ class RawViewer(QWidget):
 
         self.channelsfilter_widget = PopupWidget('Spectral plots', channels_labels, self.channelsanalyze_flags, parent=self)
         self.toolbar.addWidget(self.channelsfilter_widget)
+
+        self.rwopenAction = QAction(self)
+        self.rwopenAction.setText("Rhythms")
+        self.rwopenAction.triggered.connect(lambda: self.rw.show())
+        self.toolbar.addAction(self.rwopenAction)
 
         #self.setLayout(vbox)
 
@@ -314,6 +372,7 @@ class RawViewer(QWidget):
             self.create_surface()
             for i in range(0, self.n_channels):
                 self.sw.append(SpectralWindow(self.channels_labels[i], int(self.n_samples/2), self.fs))
+            self.rw = RhythmsWindow(int(self.n_samples/2), self.fs)
 
         self.raw_buffer[:-n_samples] = self.raw_buffer[n_samples:]
         self.raw_buffer[-n_samples:] = chunk
@@ -321,10 +380,18 @@ class RawViewer(QWidget):
             self.calibrate()
 
         if signal is not None:
-            self.filtered_buffer = self.raw_buffer.copy()
-            #signal.fit_model(self.filtered_buffer, self.channels_labels)
-            #self.filtered_buffer = signal.apply(self.filtered_buffer)
-            #self.filtered_buffer = np.subtract(chunk, self.filtered_buffer)
+            self.filtered_buffer1 = self.raw_buffer.copy()
+            self.filtered_buffer2 = self.raw_buffer.copy()
+            self.filtered_buffer3 = self.raw_buffer.copy()
+            signal.fit_model(self.filtered_buffer1, [8, 13], self.channels_labels)
+            self.filtered_buffer1 = signal.apply(self.filtered_buffer1)
+
+            signal.fit_model(self.filtered_buffer2, [4, 8], self.channels_labels)
+            self.filtered_buffer2 = signal.apply(self.filtered_buffer2)
+
+            signal.fit_model(self.filtered_buffer3, [1, 4], self.channels_labels)
+            self.filtered_buffer3 = signal.apply(self.filtered_buffer3)
+
 
         self.update_data()
 
@@ -337,9 +404,10 @@ class RawViewer(QWidget):
 
     def update_data(self):
         for i in range(0, self.n_channels, 1):
-            runnable = DPHandler(self.filtered_buffer[:, i], self.calib_values[i], self.scaler, i)
+            runnable = DPHandler(self.filtered_buffer3[:, i], self.calib_values[i], self.scaler, i)
             runnable.signals.result.connect(self.set_data)
             self.pool.start(runnable)
+        self.rw.set_data([self.filtered_buffer1, self.filtered_buffer2, self.filtered_buffer3])
         self.ampLabel.setText("Amplitude scale: x" + str(self.scaler))
 
     def update_scaler(self, increase=False):
