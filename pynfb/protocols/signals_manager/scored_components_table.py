@@ -124,7 +124,7 @@ class ScoredComponentsTable(QtWidgets.QTableWidget):
             if self.marks is not None:
                 plot_widget.plot(y=self.marks*np.max(self.time_series[:, ind]), pen=(1,3))
                 plot_widget.plot(y=-self.marks * np.max(self.time_series[:, ind]), pen=(1, 3))
-            plot_widget.plot(x=np.arange(self.time_series.shape[0]) / fs)
+            plot_widget.plot(x=np.arange(self.time_series.shape[0]) / fs, y=self.time_series[:, ind])
 
             plot_widget.setMaximumHeight(self.row_items_max_height)
             plot_widget.plotItem.getViewBox().state['wheelScaleFactor'] = 0

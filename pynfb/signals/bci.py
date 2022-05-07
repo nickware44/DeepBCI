@@ -81,7 +81,7 @@ class BCISignal():
     def update(self, chunk):
         if self.model_fitted:
             labels = self.model.apply(chunk)
-            self.current_sample = Counter(labels).most_common(1)[0][0]
+            #self.current_sample = Counter(labels).most_common(1)[0][0]
         #print("DBG 1 ==========")
         self.current_chunk = self.current_sample * np.ones(len(chunk))
         with open("bci_current_state.pkl", "w", encoding="utf-8") as fp:

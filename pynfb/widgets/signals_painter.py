@@ -2,8 +2,10 @@ import os
 import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import QThread, QObject, pyqtSignal, QRunnable, QThreadPool
+from PyQt5.QtGui import QImage
 from PyQt5.QtWidgets import QAction, QSpinBox, QLabel, QDoubleSpinBox, QMenu, QTableWidget, QPushButton, QWidget, \
     QVBoxLayout, QHBoxLayout
+from mne.viz import plot_topomap
 
 from scipy.signal import savgol_filter
 from scipy.fft import fft, fftfreq, rfft
@@ -11,6 +13,12 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from datetime import datetime
 import mne
 from scipy.fftpack import rfftfreq
+
+from pynfb.generators import ch_names32
+from pynfb.generators import ch_names27
+from pynfb.inlets.montage import Montage
+
+from pynfb.postprocessing.utils import runica
 from pynfb.widgets import edf_saver
 from vispy import scene
 
@@ -143,6 +151,7 @@ class RhythmsWindow(QWidget):
         sy0 = 0
         sy1 = 0
         sy2 = 0
+        sx = 0
         B = []
 
         for i in range(0, len(x), 1):
@@ -151,7 +160,7 @@ class RhythmsWindow(QWidget):
 
         k1 = len(B)-1 if len(B)%2 == 0 else len(B)
         fb = savgol_filter(B, k1, k2)
-        pg.plot(fb)
+        #pg.plot(fb)
         kx = len(fb)/(f[3]-f[0])
         for i in range(0, int(kx*(f[1]-f[0])), 1):
             sy0 += fb[i]
@@ -160,25 +169,26 @@ class RhythmsWindow(QWidget):
         for i in range(int(kx*(f[2]-f[0])), len(fb), 1):
             sy2 += fb[i]
 
-        print(kx)
-        print(sy1)
-        print(sy0)
-        print(sy2)
+        # print(kx)
+        # print(sy1)
+        # print(sy0)
+        # print(sy2)
 
-        sx = 1 - (sy0/sy1+sy2/sy1)/2
+        if sy1:
+            sx = 1 - (sy0/sy1+sy2/sy1)/2
         if sx < -1:
             sx = -1
         return sx
 
     def set_data(self, data):
         self.update_counter += 1
-        if self.update_counter > 1000:
-            self.update_counter = 0
-        else:
+        if self.update_counter <= 10:
             return
+        else:
+            self.update_counter = 0
 
         ai = self.get_indicator(data[0], 19, [7, 9, 11, 13], 6) # OZ, alpha
-        ti = self.get_indicator(data[1], 3, [3, 5, 7, 9], 6) # F7, teta
+        ti = self.get_indicator(data[1], 3, [3, 5, 7, 9], 6) # F7, theta
         di = self.get_indicator(data[2], 10, [0.4, 1.4, 2.4, 3.4], 7) # CZ, delta
         self.bar1.setOpts(height=ai)
         self.bar2.setOpts(height=ti)
@@ -194,7 +204,11 @@ class RawViewer(QWidget):
         self.calib_flag = False
         self.visible_flags = np.zeros(self.n_channels)
         self.channelsanalyze_flags = np.zeros(self.n_channels)
+        self.spectraldata = []
+        self.tw = None
+        self.sw = [QWidget]*n_channels
         for i in range(0, n_channels):
+            #self.sw.append(None)
             self.visible_flags[i] = True
             self.channelsanalyze_flags[i] = False
 
@@ -221,7 +235,7 @@ class RawViewer(QWidget):
         self.n_samples_to_display = 0
         #self.notch_filter = NotchFilter(0, fs, n_channels)
         #self.butter_filter = ButterFilter((0.5, 45), fs, n_channels)
-        self.sw = []
+
         print("FS: "+str(fs))
         self.pool = QThreadPool.globalInstance()
 
@@ -233,8 +247,6 @@ class RawViewer(QWidget):
             self.x_mesh = np.linspace(0, self.n_samples_to_display / self.fs, self.n_samples_to_display)
             #self.setXRange(0, self.x_mesh[self.n_samples_to_display - 1])
             self.create_surface()
-            for i in range(0, self.n_channels):
-                self.sw.append(SpectralWindow(channels_labels[i], int(self.n_samples/2), self.fs))
             self.rw = RhythmsWindow(int(self.n_samples/2), self.fs)
 
         self.saveAction = QAction(self)
@@ -304,6 +316,11 @@ class RawViewer(QWidget):
         self.rwopenAction.triggered.connect(lambda: self.rw.show())
         self.toolbar.addAction(self.rwopenAction)
 
+        self.twopenAction = QAction(self)
+        self.twopenAction.setText("Topography")
+        self.twopenAction.triggered.connect(lambda: self.tw.showMaximized())
+        self.toolbar.addAction(self.twopenAction)
+
         #self.setLayout(vbox)
 
         #self.channelsfilter_widget = PopupWidget('Channels to filter', channels_labels, self.channelsfilter_flags, parent=self)
@@ -345,7 +362,10 @@ class RawViewer(QWidget):
         self.viewbox.camera.set_range()
 
     def open_spectral(self, index):
-        self.channelsanalyze_flags[index] = True
+        if not self.channelsanalyze_flags[index]:
+            self.sw[index] = SpectralWindow(self.channels_labels[index], int(self.n_samples / 2), self.fs)
+            self.channelsanalyze_flags[index] = True
+        self.sw[index].set_data(np.abs(self.spectraldata)[:int(self.n_samples/2)])
         self.sw[index].show()
 
     def process_vischeck(self, index):
@@ -370,8 +390,8 @@ class RawViewer(QWidget):
             self.x_mesh = np.linspace(0, self.n_samples_to_display / self.fs, self.n_samples_to_display)
             self.n_samples = n_samples
             self.create_surface()
-            for i in range(0, self.n_channels):
-                self.sw.append(SpectralWindow(self.channels_labels[i], int(self.n_samples/2), self.fs))
+            # for i in range(0, self.n_channels):
+            #     self.sw.append(SpectralWindow(self.channels_labels[i], int(self.n_samples/2), self.fs))
             self.rw = RhythmsWindow(int(self.n_samples/2), self.fs)
 
         self.raw_buffer[:-n_samples] = self.raw_buffer[n_samples:]
@@ -380,6 +400,33 @@ class RawViewer(QWidget):
             self.calibrate()
 
         if signal is not None:
+            # runica(self.raw_buffer, self.fs, self.channels_labels)
+            #montage = Montage(ch_names32)
+            # ch_names32 = ['EEG FP1', 'EEG FPZ', 'EEG FP2', 'EEG  F7', 'EEG  F3', 'EEG  FZ', 'EEG  F4', 'EEG  F8', 'EEG  T3',
+            #               'EEG  C3', 'EEG  CZ', 'EEG C4', 'EEG T4', 'EEG  T5', 'EEG P3', 'EEG PZ', 'EEG P4', 'EEG T6', 'EEG O1',
+            #               'EEG OZ', 'EEG O2', 'EEG PBH', 'EEG NOS', 'EEG SHL', 'EEG SHH', 'EEG A1', 'EEG A2', '', '', '', '', '']
+            #montage = Montage(ch_names32)
+            #print(self.channels_labels)
+            #a = ch_names27.conjugate
+            #print(np.shape(self.channels_labels))
+            #print(np.shape(ch_names27))
+            #b = self.channels_labels.conjugate
+
+            #print(montage.get_names())
+            # spatial, topo = runica(np.random.normal(size=(100000, 32)), 1000, montage.get_names(), mode='csp')
+            if False:
+                self.tw = runica(self.raw_buffer, self.fs, self.channels_labels, mode='csp')
+                topocanvas = self.tw.table.topographies_items[0].topo
+                width, height = topocanvas.get_width_height()
+                print("canvas pixels size "+str(width)+"x"+str(height))
+                for x in range(0, width):
+                    for y in range(0, height):
+                        pixel = QImage(topocanvas.buffer_rgba(), width, height, QImage.Format_ARGB32).pixel(x, y)
+                        #print(QtGui.QColor(pixel).getRgb()[:-1])
+                #print("topography data: ", self.tw.topographies)
+                # plot_topomap(spatial, montage.get_pos())
+                # plot_topomap(topo, montage.get_pos())
+
             self.filtered_buffer1 = self.raw_buffer.copy()
             self.filtered_buffer2 = self.raw_buffer.copy()
             self.filtered_buffer3 = self.raw_buffer.copy()
@@ -391,15 +438,14 @@ class RawViewer(QWidget):
 
             signal.fit_model(self.filtered_buffer3, [1, 4], self.channels_labels)
             self.filtered_buffer3 = signal.apply(self.filtered_buffer3)
-
-
         self.update_data()
 
     def set_data(self, i, data, spectraldata):
         if self.visible_flags[i]:
             self.curves[i][:, 1] = data
             self.lines[i].set_data(pos=self.curves[i])
-        if self.channelsanalyze_flags[i] or self.mode == 1:
+        self.spectraldata = spectraldata
+        if self.mode == 1 and self.channelsanalyze_flags[i]:
             self.sw[i].set_data(np.abs(spectraldata)[:int(self.n_samples/2)])
 
     def update_data(self):

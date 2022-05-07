@@ -1,15 +1,17 @@
-import time
 import os
+import time
+from multiprocessing import Queue
 from multiprocessing import Process
 
-import numpy as np
-from pylsl import StreamInfo, StreamOutlet
 import mne
-
+import numpy as np
 from mne.io.brainvision import read_raw_brainvision
-from pynfb.serializers.hdf5 import load_h5py_all_samples, load_xml_str_from_hdf5_dataset, DatasetNotFound, load_channels_and_fs
-from pynfb.serializers.xml_ import get_lsl_info_from_xml
+from pylsl import StreamInfo, StreamOutlet
+
 from pynfb.inlets.channels_selector import ChannelsSelector
+from pynfb.serializers.hdf5 import load_h5py_all_samples, load_xml_str_from_hdf5_dataset, DatasetNotFound, \
+    load_channels_and_fs
+from pynfb.serializers.xml_ import get_lsl_info_from_xml
 
 ch_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'Ft9', 'Fc5', 'Fc1', 'Fc2', 'Fc6', 'Ft10', 'T7', 'C3', 'Cz',
             'C4', 'T8', 'Tp9', 'Cp5', 'Cp1', 'Cp2', 'Cp6', 'Tp10', 'P7', 'P3', 'Pz', 'P4', 'P8', 'O1', 'Oz', 'O2',
@@ -26,8 +28,11 @@ ch_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'Ft9', 'Fc5', 'Fc1', 'Fc
 ch_names32 = ['Fp1','Fp2','F7','F3','Fz','F4','F8','Ft9','Fc5','Fc1','Fc2','Fc6','Ft10','T7','C3','Cz','C4','T8','Tp9',
               'Cp5','Cp1','Cp2','Cp6','Tp10','P7','P3','Pz','P4','P8','O1','Oz','O2']
 
+ch_names27 = ['Fp1','Fp2','F7','F3','Fz','F4','F8','Ft9','Fc5','Fc1','Fc2','Fc6','Ft10','T7','C3','Cz','C4','T8','Tp9',
+              'Cp5','Cp1','Cp2','Cp6','Tp10','P7','P3','Pz']
 
-def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', labels=None, mode=0):
+
+def run_eeg_sim(q=None, freq=None, chunk_size=0, source_buffer=None, name='example', labels=None, mode=0):
     """
     Make LSL Stream Outlet and send source_buffer data or simulate sin data
     :param n_channels: number of channels
@@ -38,6 +43,7 @@ def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', lab
     :return:
     """
     # default freq
+    stream_read_count = 0
     freq = freq or 500
 
     # labels and n_channels
@@ -60,7 +66,6 @@ def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', lab
     print('now sending data...')
     t0 = time.time()
     t = t0
-    c = 0
     ampl = 0.0000001
     freqs = np.arange(n_channels)*5 + 10
     sample = np.zeros((n_channels,))
@@ -89,35 +94,42 @@ def run_eeg_sim(freq=None, chunk_size=0, source_buffer=None, name='example', lab
         # outlet.push_sample(sample)
         if source_buffer is not None:
             if mode == 1:
-                if c < source_buffer.shape[1]:
-                    if source_buffer.shape[1]-c < 1024:
-                        for i in range(c, source_buffer.shape[1]):
+                if stream_read_count < source_buffer.shape[1]:
+                    if source_buffer.shape[1]-stream_read_count < 1024:
+                        for i in range(stream_read_count, source_buffer.shape[1]):
                             sample[:source_buffer.shape[0]] = source_buffer[:, i]
                             outlet.push_sample(sample)
-                        c = source_buffer.shape[1]
+                        stream_read_count = source_buffer.shape[1]
                     else:
-                        for i in range(c, c+1024):
+                        for i in range(stream_read_count, stream_read_count+1024):
                             sample[:source_buffer.shape[0]] = source_buffer[:, i]
                             outlet.push_sample(sample)
-                        c += 1024
-                    print("c = "+str(c))
+                        stream_read_count += 1024
+                    if q is not None:
+                        if not q.empty():
+                            q.get()
+                        q.put(stream_read_count)
+                    print("stream_read_count = "+str(stream_read_count))
+                else:
+                    #print("Event sended")
+                    pass
             else:
-                sample[:source_buffer.shape[0]] = source_buffer[:, c % source_buffer.shape[1]]
-                c += 1
+                sample[:source_buffer.shape[0]] = source_buffer[:, stream_read_count % source_buffer.shape[1]]
+                stream_read_count += 1
                 outlet.push_sample(sample)
         else:
             sample = np.sin(2 * np.pi * time.time() * 6) * 5 + np.sin(2 * np.pi * time.time() * freqs)
             # sample *= (np.sin(2 * np.pi * time.time() * 0.25) + 1) * ampl
-            sample *= c % (500 * 4) * ampl
+            sample *= stream_read_count % (500 * 4) * ampl
 
-            if c % 20000 > 10000:
+            if stream_read_count % 20000 > 10000:
                 sample[0] *= 1
             outlet.push_sample(sample)
-            if c % (freq * 5) == 0:
+            if stream_read_count % (freq * 5) == 0:
                 t_curr = time.time()
-                print('t={:.1f}, f={:.2f}, c={}'.format(t_curr - t0, 1. / (t_curr - t) * freq * 5, c))
+                print('t={:.1f}, f={:.2f}, c={}'.format(t_curr - t0, 1. / (t_curr - t) * freq * 5, stream_read_count))
                 t = t_curr
-            c += 1
+            stream_read_count += 1
         time.sleep(1. / freq)
     pass
 
@@ -144,7 +156,7 @@ def run_events_sim(name='events_example'):
 
 def stream_file_in_a_thread(file_path, reference, stream_name):
     file_name, file_extension = os.path.splitext(file_path)
-
+    queue = Queue()
     if file_extension == '.fif':
         raw = mne.io.read_raw_fif(file_path, verbose='ERROR')
         #start, stop = raw.time_as_index([0, 60])  # read the first 15s of data
@@ -182,17 +194,18 @@ def stream_file_in_a_thread(file_path, reference, stream_name):
         labels = None
         fs = None
     thread = Process(target=run_eeg_sim, args=(),
-                          kwargs={'chunk_size': 0, 'source_buffer': source_buffer,
+                          kwargs={'q': queue,  'chunk_size': 0, 'source_buffer': source_buffer,
                                   'name': stream_name, 'labels': labels, 'freq': fs, 'mode': 1})
     thread.start()
 
-    print(source_buffer.size)
+    print("buffer size: ", source_buffer.shape[1])
     info = StreamInfo(name=stream_name, type='EEG', channel_count=source_buffer.shape[0], nominal_srate=fs, channel_format='float32', source_id='myuid34234')
     outlet = StreamOutlet(info, chunk_size=0)
     sample = np.zeros((source_buffer.shape[0],))
 
     #time.sleep(2)
-    return thread
+
+    return thread, source_buffer.shape[1], queue
 
 def stream_generator_in_a_thread(name, generator=run_eeg_sim):
     thread = Process(target=generator, args=(), kwargs={'name': name})

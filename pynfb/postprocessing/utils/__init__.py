@@ -197,11 +197,11 @@ def load_signals_data(file_path, drop_channels=()):
 def runica(x, fs, channels, mode='ica'):
     from PyQt5.QtWidgets import QApplication
     from pynfb.protocols.ssd.topomap_selector_ica import ICADialog
-    a = QApplication([])
+    # a = QApplication([])
     ica = ICADialog(x, channels, fs, mode=mode)
-    ica.exec_()
-    a.exit()
-    return ica.spatial, ica.topography
+    #ica.exec_()
+    # a.exit()
+    return ica
 
 def runica2(x, fs, channels, names=('Right', 'Left'), mode='ica'):
     from PyQt5.QtWidgets import QApplication

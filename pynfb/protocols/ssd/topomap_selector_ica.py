@@ -5,6 +5,7 @@ from mne.io import RawArray
 from mne.preprocessing import ICA
 from sklearn.metrics import mutual_info_score
 
+from pynfb.protocols.signals_manager.topography_grid import TopographyGrid
 from ...serializers.xml_ import get_lsl_info_from_xml
 from ...postprocessing.helpers import dc_blocker
 from ...protocols.signals_manager.scored_components_table import ScoredComponentsTable
@@ -23,14 +24,14 @@ def mutual_info(x, y, bins=100):
     return mi
 
 
-class ICADialog(QtWidgets.QDialog):
+class ICADialog(QtWidgets.QWidget):
     def __init__(self, raw_data, channel_names, fs, parent=None, decomposition=None, mode='ica', filters=None,
                  scores=None, states=None, labels=None, _stimulus_split=False, marks=None):
-        super(ICADialog, self).__init__(parent)
+        super().__init__()
         self.setWindowTitle(mode.upper())
         self.setMinimumWidth(800)
         self.setMinimumHeight(400)
-
+        #self.showMaximized()
 
         if decomposition is None:
             if mode == 'csp':
@@ -75,77 +76,77 @@ class ICADialog(QtWidgets.QDialog):
 
         scores_name = 'Mutual info' if mode == 'ica' else 'Eigenvalues'
         # table
-        self.table = ScoredComponentsTable(self.components, self.topographies, self.unmixing_matrix, channel_names, fs,
+        self.table = TopographyGrid(self.components, self.topographies, self.unmixing_matrix, channel_names, fs,
                                            self.scores, scores_name=scores_name, marks=marks if _stimulus_split else None)
         print('Table drawing time elapsed = {}s'.format(time() - timer))
 
         # reject selected button
-        self.reject_button = QtWidgets.QPushButton('Reject selection')
-        self.spatial_button = QtWidgets.QPushButton('Make spatial filter')
-        self.add_to_all_checkbox = QtWidgets.QCheckBox('Add to all signals')
-        self.reject_button.setMaximumWidth(150)
-        self.spatial_button.setMaximumWidth(150)
-        self.reject_button.clicked.connect(self.reject_and_close)
-        self.spatial_button.clicked.connect(self.spatial_and_close)
+        # self.reject_button = QtWidgets.QPushButton('Reject selection')
+        # self.spatial_button = QtWidgets.QPushButton('Make spatial filter')
+        # self.add_to_all_checkbox = QtWidgets.QCheckBox('Add to all signals')
+        # self.reject_button.setMaximumWidth(150)
+        # self.spatial_button.setMaximumWidth(150)
+        # #self.reject_button.clicked.connect(self.reject_and_close)
+        # self.spatial_button.clicked.connect(self.spatial_and_close)
 
         # layout
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.table)
-        self.update_band_checkbox = QtWidgets.QCheckBox('Update band')
+        # self.update_band_checkbox = QtWidgets.QCheckBox('Update band')
 
         # setup sliders
-        self.sliders = Sliders(fs, reg_coef=(mode == 'csp'), stimulus_split=_stimulus_split)
-        self.sliders.apply_button.clicked.connect(self.recompute)
-        self.lambda_csp3 = states
-        layout.addWidget(self.sliders)
-        layout.addWidget(self.update_band_checkbox)
+        # self.sliders = Sliders(fs, reg_coef=(mode == 'csp'), stimulus_split=_stimulus_split)
+        # self.sliders.apply_button.clicked.connect(self.recompute)
+        # self.lambda_csp3 = states
+        # layout.addWidget(self.sliders)
+        # layout.addWidget(self.update_band_checkbox)
 
         # ica mutual sorting
-        if mode == 'ica':
-            sort_layout = QtWidgets.QHBoxLayout()
-            self.sort_combo = QtWidgets.QComboBox()
-            self.sort_combo.setMaximumWidth(100)
-            self.sort_combo.addItems(channel_names)
-            self.sort_combo.setCurrentIndex(self.decomposition.sorted_channel_index)
-            self.sort_combo.currentIndexChanged.connect(self.sort_by_mutual)
-            sort_layout.addWidget(QtWidgets.QLabel('Sort by: '))
-            sort_layout.addWidget(self.sort_combo)
-            sort_layout.setAlignment(QtCore.Qt.AlignLeft)
-            layout.addLayout(sort_layout)
+        # if mode == 'ica':
+        #     sort_layout = QtWidgets.QHBoxLayout()
+        #     self.sort_combo = QtWidgets.QComboBox()
+        #     self.sort_combo.setMaximumWidth(100)
+        #     self.sort_combo.addItems(channel_names)
+        #     self.sort_combo.setCurrentIndex(self.decomposition.sorted_channel_index)
+        #     #self.sort_combo.currentIndexChanged.connect(self.sort_by_mutual)
+        #     sort_layout.addWidget(QtWidgets.QLabel('Sort by: '))
+        #     sort_layout.addWidget(self.sort_combo)
+        #     sort_layout.setAlignment(QtCore.Qt.AlignLeft)
+        #     layout.addLayout(sort_layout)
 
         # buttons
-        buttons_layout = QtWidgets.QHBoxLayout()
-        buttons_layout.setAlignment(QtCore.Qt.AlignLeft)
-        buttons_layout.addWidget(self.reject_button)
-        buttons_layout.addWidget(self.spatial_button)
-        buttons_layout.addWidget(self.add_to_all_checkbox)
-        layout.addLayout(buttons_layout)
+        # buttons_layout = QtWidgets.QHBoxLayout()
+        # buttons_layout.setAlignment(QtCore.Qt.AlignLeft)
+        # buttons_layout.addWidget(self.reject_button)
+        # buttons_layout.addWidget(self.spatial_button)
+        # buttons_layout.addWidget(self.add_to_all_checkbox)
+        # layout.addLayout(buttons_layout)
 
         # enable maximize btn
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMaximizeButtonHint)
 
         # checkboxes behavior
-        self.table.no_one_selected.connect(lambda: self.reject_button.setDisabled(True))
-        self.table.no_one_selected.connect(lambda: self.spatial_button.setDisabled(True))
-        self.table.one_selected.connect(lambda: self.reject_button.setDisabled(False))
-        self.table.one_selected.connect(lambda: self.spatial_button.setDisabled(False))
-        self.table.more_one_selected.connect(lambda: self.reject_button.setDisabled(False))
-        self.table.more_one_selected.connect(lambda: self.spatial_button.setDisabled(True))
-        self.table.checkboxes_state_changed()
+        # self.table.no_one_selected.connect(lambda: self.reject_button.setDisabled(True))
+        # self.table.no_one_selected.connect(lambda: self.spatial_button.setDisabled(True))
+        # self.table.one_selected.connect(lambda: self.reject_button.setDisabled(False))
+        # self.table.one_selected.connect(lambda: self.spatial_button.setDisabled(False))
+        # self.table.more_one_selected.connect(lambda: self.reject_button.setDisabled(False))
+        # self.table.more_one_selected.connect(lambda: self.spatial_button.setDisabled(True))
+        # self.table.checkboxes_state_changed()
 
-    def sort_by_mutual(self):
-        ind = self.sort_combo.currentIndex()
-        self.scores = [mutual_info(self.components[:, j], self.data[:, ind]) for j in range(self.components.shape[1])]
-        self.table.set_scores(self.scores)
+    # def sort_by_mutual(self):
+        # ind = self.sort_combo.currentIndex()
+        # self.scores = [mutual_info(self.components[:, j], self.data[:, ind]) for j in range(self.components.shape[1])]
+        # self.table.set_scores(self.scores)
 
-    def reject_and_close(self):
-        indexes = self.table.get_checked_rows()
-        unmixing_matrix = self.unmixing_matrix.copy()
-        inv = np.linalg.pinv(self.unmixing_matrix)
-        unmixing_matrix[:, indexes] = 0
-        self.rejection = SpatialRejection(np.dot(unmixing_matrix, inv), rank=len(indexes), type_str=self.mode,
-                                          topographies=self.topographies[:, indexes])
-        self.close()
+    # def reject_and_close(self):
+    #     indexes = self.table.get_checked_rows()
+    #     unmixing_matrix = self.unmixing_matrix.copy()
+    #     inv = np.linalg.pinv(self.unmixing_matrix)
+    #     unmixing_matrix[:, indexes] = 0
+    #     self.rejection = SpatialRejection(np.dot(unmixing_matrix, inv), rank=len(indexes), type_str=self.mode,
+    #                                       topographies=self.topographies[:, indexes])
+    #     self.close()
 
     def spatial_and_close(self):
         index = self.table.get_checked_rows()[0]

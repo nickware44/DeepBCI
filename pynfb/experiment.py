@@ -1,6 +1,8 @@
 import os
 import re
 from datetime import datetime
+from time import sleep
+
 import numpy as np
 from PyQt5 import QtCore
 from itertools import zip_longest, chain
@@ -10,7 +12,7 @@ from pynfb.postprocessing.plot_all_fb_bars import plot_fb_dynamic
 from pynfb.widgets.channel_trouble import ChannelTroubleWarning
 from pynfb.widgets.helpers import WaitMessage
 from pynfb.outlets.signals_outlet import SignalsOutlet
-from .generators import run_eeg_sim, stream_file_in_a_thread, stream_generator_in_a_thread
+import generators #import event_wait, run_eeg_sim, stream_file_in_a_thread, stream_generator_in_a_thread
 from .inlets.ftbuffer_inlet import FieldTripBufferInlet
 from .inlets.lsl_inlet import LSLInlet
 from .inlets.channels_selector import ChannelsSelector
@@ -23,7 +25,6 @@ from .signals import DerivedSignal, CompositeSignal, BCISignal
 from .windows import MainWindow
 from .windows import RawPainterWindow
 from ._titles import WAIT_BAR_MESSAGES
-import mne
 
 
 # helpers
@@ -38,14 +39,15 @@ class Experiment():
         self.main_timer = None
         self.stream = None
         self.thread = None
+        self.stream_queue = None
         self.catch_channels_trouble = True
         self.mock_signals_buffer = None
         self.activate_trouble_catching = False
         self.main = None
         self.painter = None
         self.rawfile = 0
+        self.data_size = 0
         self.restart()
-        print("DBG 3 =========="+str(params))
         pass
 
     def update(self):
@@ -139,14 +141,21 @@ class Experiment():
                 self.next_protocol()
 
     def setRaw(self):
-        chunk, other_chunk, timestamp = self.stream.get_next_chunk(mode=self.rawfile) if self.stream is not None else (None, None)
-        #print("try")
-        # for i, signal in enumerate():
-        #     signal.fit_model(chunk, ['EEG  F7', 'EEG  F3', 'EEG  F4', 'EEG  F8', 'EEG  T3', 'EEG  C3', 'EEG  Cz', 'EEG  C4', 'EEG  T4', 'EEG  T5', 'EEG  P3', 'EEG  Pz', 'EEG  P4', 'EEG  T6', 'EEG  O1', 'EEG  O2'])
-        #     chunk = signal.apply(chunk)
-        if chunk is not None:
-            print(chunk.size)
-            self.painter.signals_painter.set_chunk(self.signals[0], chunk)
+        print("Waiting for data...")
+        while 1:
+            stream_size = self.stream_queue.get()
+            print("Waiting for data. Stream size:", stream_size)
+            if stream_size == self.data_size:
+                chunk, other_chunk, timestamp = self.stream.get_next_chunk(
+                    mode=self.rawfile) if self.stream is not None else (None, None)
+                print("loaded len: ", self.data_size)
+                print(chunk.size)
+                if chunk is not None:
+                    print(chunk.size)
+                    self.painter.signals_painter.set_chunk(self.signals[0], chunk)
+                break
+            sleep(1)
+        print("Got data")
 
 
     def enable_trouble_catching(self, widget):
@@ -319,7 +328,7 @@ class Experiment():
 
         # run simulated eeg lsl stream in a thread
         elif self.params['sInletType'] == 'lsl_generator':
-            self.thread = stream_generator_in_a_thread(self.params['sStreamName'])
+            self.thread = generators.stream_generator_in_a_thread(self.params['sStreamName'])
 
         # use FTB inlet
         aux_streams = None
@@ -569,7 +578,8 @@ class Experiment():
         stream_name = self.params['sStreamName']
 
         self.rawfile = 1
-        self.thread = stream_file_in_a_thread(file_path, reference, stream_name)
+        self.thread, size, self.stream_queue = generators.stream_file_in_a_thread(file_path, reference, stream_name)
+        self.data_size = size
 
     def destroy(self):
         if self.thread is not None:

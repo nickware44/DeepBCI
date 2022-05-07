@@ -16,7 +16,9 @@ install_requires = [
     "pylsl",
     "matplotlib",
     "gtts",
-    "googletrans"
+    "googletrans",
+    "pyedflib",
+    "vispy"
 ]
 
 extras_require = {
