@@ -291,7 +291,9 @@ class RawViewer(QWidget):
         #self.toolbar.addWidget(self.vis_widget)
 
         self.model = QtGui.QStandardItemModel()
-        self.listView = QtGui.QListView()
+        self.listView = QtWidgets.QListView()
+        self.alglist = QtWidgets.QListView()
+        self.algmodel = QtGui.QStandardItemModel()
 
         if channels_labels is not None:
             for i in range(len(channels_labels)):
@@ -302,11 +304,36 @@ class RawViewer(QWidget):
 
                 self.model.appendRow(item)
         self.listView.setModel(self.model)
+        algnames = []
+        # algnames = ["[preprocessing] Butterworth filter", "[analyze] SVM"]
+        for i in range(len(algnames)):
+            item = QtGui.QStandardItem(algnames[i])
+            item.setCheckable(True)
+            item.setCheckState(QtCore.Qt.Checked)
+            self.algmodel.appendRow(item)
+
+        self.alglist.setModel(self.algmodel)
 
         #vbox.addWidget(self.listView)
         #vbox.addStretch(1)
         self.listView.clicked.connect(self.process_vischeck)
-        self.widgets.setWidget(self.listView)
+
+        self.listwidget = QWidget()
+        self.listlayout = QVBoxLayout(self)
+        self.listlayout.addWidget(self.listView)
+        self.listlayout.addWidget(self.alglist)
+        ab1 = QPushButton()
+        ab1.setText("Add")
+        ab2 = QPushButton()
+        ab2.setText("Edit")
+        ab3 = QPushButton()
+        ab3.setText("Delete")
+        self.listlayout.addWidget(ab1)
+        self.listlayout.addWidget(ab2)
+        self.listlayout.addWidget(ab3)
+        self.listwidget.setLayout(self.listlayout)
+        self.widgets.setWidget(self.listwidget)
+
 
         self.channelsfilter_widget = PopupWidget('Spectral plots', channels_labels, self.channelsanalyze_flags, parent=self)
         self.toolbar.addWidget(self.channelsfilter_widget)

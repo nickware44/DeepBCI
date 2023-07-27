@@ -14,7 +14,7 @@ def azimuthal_equidistant_projection(hsp):
 
     # Mark the points that might have caused bad angle estimates
     iffy = np.nonzero(np.sum(hsp[:, :2] ** 2, axis=-1) ** (1. / 2)
-                      < np.finfo(np.float).eps * 10)
+                      < np.finfo(float).eps * 10)
     theta[iffy] = 0
     phi[iffy] = 0
 
@@ -76,16 +76,11 @@ class Montage(pd.DataFrame):
     @staticmethod
     def load_layout(name):
         if name == 'EEG1005':
-            if int(mne.__version__.split('.')[1]) >= 19:  # validate mne version (mne 0.19+)
-                layout = mne.channels.make_standard_montage('standard_1005')
-                layout.names = layout.ch_names
-                ch_pos_dict = layout._get_ch_pos()
-                layout.pos = np.array([ch_pos_dict[name] for name in layout.names])
-                layout.pos = azimuthal_equidistant_projection(layout.pos)
-            else:
-                layout = mne.channels.read_montage('standard_1005')
-                layout.pos = azimuthal_equidistant_projection(layout.pos)
-                layout.names = layout.ch_names
+            layout = mne.channels.make_standard_montage('standard_1005')
+            layout.names = layout.ch_names
+            ch_pos_dict = layout._get_ch_pos()
+            layout.pos = np.array([ch_pos_dict[name] for name in layout.names])
+            layout.pos = azimuthal_equidistant_projection(layout.pos)
         else:
             layout = mne.channels.read_layout(name)
         layout.names = list(map(str.upper, layout.names))

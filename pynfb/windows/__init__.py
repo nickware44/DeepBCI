@@ -360,6 +360,7 @@ class RawPainterWindow(QtWidgets.QMainWindow):
         self.fileToolBar = self.addToolBar("Data")
 
         widelem = QScrollArea()
+        self.setWindowTitle("Viewer")
         self.signals_painter = RawViewer(freq, channels_labels, mode=mode, toolbar=self.fileToolBar, widgets=widelem)
         layout = pg.LayoutWidget(self)
         layout.addWidget(self.signals_painter, 0, 0)

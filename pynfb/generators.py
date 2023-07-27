@@ -99,11 +99,13 @@ def run_eeg_sim(q=None, freq=None, chunk_size=0, source_buffer=None, name='examp
                         for i in range(stream_read_count, source_buffer.shape[1]):
                             sample[:source_buffer.shape[0]] = source_buffer[:, i]
                             outlet.push_sample(sample)
+                            #print("Pushing final sample ")
                         stream_read_count = source_buffer.shape[1]
                     else:
                         for i in range(stream_read_count, stream_read_count+1024):
                             sample[:source_buffer.shape[0]] = source_buffer[:, i]
                             outlet.push_sample(sample)
+                            #print("Pushing sample")
                         stream_read_count += 1024
                     if q is not None:
                         if not q.empty():

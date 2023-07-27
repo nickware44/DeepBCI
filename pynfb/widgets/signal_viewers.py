@@ -45,7 +45,7 @@ class SignalViewer(pg.PlotWidget):
             self.curves.append(curve)
 
         # add vertical running line
-        self.vertical_line = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='B48375', width=1))
+        self.vertical_line = pg.InfiniteLine(pos=0, angle=90, pen=pg.mkPen(color='#B48375', width=1))
         self.addItem(self.vertical_line)
 
         # notch filter

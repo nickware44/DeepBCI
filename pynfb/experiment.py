@@ -149,9 +149,8 @@ class Experiment():
                 chunk, other_chunk, timestamp = self.stream.get_next_chunk(
                     mode=self.rawfile) if self.stream is not None else (None, None)
                 print("loaded len: ", self.data_size)
-                print(chunk.size)
                 if chunk is not None:
-                    print(chunk.size)
+                    print("Chunk size"+str(chunk.size))
                     self.painter.signals_painter.set_chunk(self.signals[0], chunk)
                 break
             sleep(1)
@@ -552,6 +551,7 @@ class Experiment():
             self.source_space_window = self.main.source_space_window
 
         if self.params['sInletType'] == 'raw_from_file':
+            print("DBG ========================> raw")
             self.main.player_panel.start_clicked.connect(self.restart_raw_from_file)
 
         # create real fb list
@@ -560,6 +560,7 @@ class Experiment():
         self.painter = RawPainterWindow(freq=self.freq, channels_labels=channels_labels, mode=self.rawfile)
 
         if self.rawfile:
+            print("Raw file set")
             self.setRaw()
             #self.main_timer.timeout.connect(self.setRaw)
             #self.main_timer.start(3000)
@@ -576,7 +577,6 @@ class Experiment():
         file_path = self.params['sRawDataFilePath']
         reference = self.params['sReference']
         stream_name = self.params['sStreamName']
-
         self.rawfile = 1
         self.thread, size, self.stream_queue = generators.stream_file_in_a_thread(file_path, reference, stream_name)
         self.data_size = size
